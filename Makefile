@@ -329,12 +329,7 @@ $(info )
 ggml.o: ggml.c ggml.h ggml-cuda.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
-ggml-alloc.o: ggml-alloc.c ggml.h ggml-alloc.h
-	$(CC)  $(CFLAGS)   -c $< -o $@
-
-OBJS += ggml-alloc.o
-
-llama.o: llama.cpp ggml.h ggml-alloc.h ggml-cuda.h ggml-metal.h llama.h llama-util.h
+llama.o: llama.cpp ggml.h ggml-cuda.h ggml-metal.h llama.h llama-util.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 common.o: examples/common.cpp examples/common.h

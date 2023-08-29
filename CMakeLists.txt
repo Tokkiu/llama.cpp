@@ -503,8 +503,6 @@ endif()
 add_library(ggml OBJECT
             ggml.c
             ggml.h
-            ggml-alloc.c
-            ggml-alloc.h
             ${GGML_SOURCES_CUDA}
             ${GGML_SOURCES_OPENCL}
             ${GGML_SOURCES_METAL}
