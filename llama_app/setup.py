@@ -7,11 +7,10 @@ Usage:
 
 from setuptools import setup
 
-APP = ['main.py']
-DATA_FILES = ['server.py']
-# DATA_FILES = ['server.py', 'server', 'llama-2-13b-chat.ggmlv3.q4_0.bin']
+APP = ['llama.py']
+DATA_FILES = ['server.py', 'server', 'llama-2-13b-chat.ggmlv3.q4_0.bin']
 OPTIONS = {
-    'packages' : ['flask', 'requests'],
+    'packages' : ['flask', 'requests', 'chardet', 'waitress'],
 }
 setup(
     app=APP,

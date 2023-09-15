@@ -15,10 +15,10 @@ parser.add_argument("--user-name", type=str, help="USER name in chat completions
 parser.add_argument("--ai-name", type=str, help="ASSISTANT name in chat completions(default: '\\nASSISTANT: ')", default="\\nASSISTANT: ")
 parser.add_argument("--system-name", type=str, help="SYSTEM name in chat completions(default: '\\nASSISTANT's RULE: ')", default="\\nASSISTANT's RULE: ")
 parser.add_argument("--stop", type=str, help="the end of response in chat completions(default: '</s>')", default="</s>")
-parser.add_argument("--llama-api", type=str, help="Set the address of server.cpp in llama.cpp(default: http://127.0.0.1:8080)", default='http://127.0.0.1:8080')
+parser.add_argument("--llama-api", type=str, help="Set the address of server.cpp in llama.cpp(default: http://127.0.0.1:31080)", default='http://127.0.0.1:31080')
 parser.add_argument("--api-key", type=str, help="Set the api key to allow only few user(default: NULL)", default="")
 parser.add_argument("--host", type=str, help="Set the ip address to listen.(default: 127.0.0.1)", default='127.0.0.1')
-parser.add_argument("--port", type=int, help="Set the port to listen.(default: 8081)", default=8081)
+parser.add_argument("--port", type=int, help="Set the port to listen.(default: 31081)", default=31081)
 
 args = parser.parse_args()
 
@@ -166,7 +166,9 @@ def chat_completions():
 
     if (not stream):
         data = requests.request("POST", urllib.parse.urljoin(args.llama_api, "/completion"), data=json.dumps(postData))
-        print(data.json())
+        print("get data:")
+        print("data", data.content)
+        print("data.json", data.json())
         resData = make_resData(data.json(), chat=True, promptToken=promptToken)
         return jsonify(resData)
     else:
@@ -202,7 +204,9 @@ def completion():
 
     if (not stream):
         data = requests.request("POST", urllib.parse.urljoin(args.llama_api, "/completion"), data=json.dumps(postData))
-        print(data.json())
+        print("get data:")
+        print("data", data)
+        print("data.json", data.json())
         resData = make_resData(data.json(), chat=False, promptToken=promptToken)
         return jsonify(resData)
     else:
@@ -217,6 +221,6 @@ def completion():
         return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    # model = Thread(target=run_server, args =())
-    # model.start()
+    model = Thread(target=run_server, args =())
+    model.start()
     app.run(args.host, port=args.port)
