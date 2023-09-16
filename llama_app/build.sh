@@ -1,0 +1,1 @@
+pyinstaller --add-binary '' -F llama.py
