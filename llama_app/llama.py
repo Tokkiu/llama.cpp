@@ -4,8 +4,9 @@ import urllib.parse
 import requests
 import time
 import json
-from server import run_server, Downloader
+from server import run_server, Downloader, ModelStatus
 from threading import Thread
+import os
 
 app = Flask(__name__)
 
@@ -27,7 +28,7 @@ parser.add_argument("--llama-api", type=str,
 parser.add_argument("--api-key", type=str, help="Set the api key to allow only few user(default: NULL)", default="")
 parser.add_argument("--host", type=str, help="Set the ip address to listen.(default: 127.0.0.1)", default='127.0.0.1')
 parser.add_argument("--port", type=int, help="Set the port to listen.(default: 31081)", default=31081)
-
+parser.add_argument("--model", type=str, help="model path. (default: llama-2-13b-chat.ggmlv3.q4_0.bin)", default="")
 args = parser.parse_args()
 
 
@@ -150,12 +151,12 @@ def make_resData_stream(data, chat=False, time_now=0, start=False):
             }
             if (data["stop"]):
                 resData["choices"][0]["finish_reason"] = "stop" if (
-                            data["stopped_eos"] or data["stopped_word"]) else "length"
+                        data["stopped_eos"] or data["stopped_word"]) else "length"
     else:
         resData["choices"][0]["text"] = data["content"]
         if (data["stop"]):
             resData["choices"][0]["finish_reason"] = "stop" if (
-                        data["stopped_eos"] or data["stopped_word"]) else "length"
+                    data["stopped_eos"] or data["stopped_word"]) else "length"
 
     return resData
 
@@ -180,9 +181,6 @@ def chat_completions():
 
     if (not stream):
         data = requests.request("POST", urllib.parse.urljoin(args.llama_api, "/completion"), data=json.dumps(postData))
-        print("get data:")
-        print("data", data.content)
-        print("data.json", data.json())
         resData = make_resData(data.json(), chat=True, promptToken=promptToken)
         return jsonify(resData)
     else:
@@ -221,9 +219,7 @@ def completion():
 
     if (not stream):
         data = requests.request("POST", urllib.parse.urljoin(args.llama_api, "/completion"), data=json.dumps(postData))
-        print("get data:")
         print("data", data)
-        print("data.json", data.json())
         resData = make_resData(data.json(), chat=False, promptToken=promptToken)
         return jsonify(resData)
     else:
@@ -241,36 +237,101 @@ def completion():
 
 
 downloader = Downloader()
+model_monitor = {}
 
 
-@app.route('/model', methods=['POST'])
-def model_impl():
+@app.route('/select', methods=['POST'])
+def download_impl():
     if (args.api_key != "" and request.headers["Authorization"].split()[1] != args.api_key):
         return Response(status=403)
     body = request.get_json()
     model_name = "llama_13B"
     if (is_present(body, "model")): model_name = body["model"]
-    download = 100.
-    running = True
-    if not downloader.downloaded():
-        downloader.download()
-        download = downloader.progress
-        running = False
+    status = ModelStatus(model_name)
+    if model_name in model_monitor:
+        status = model_monitor[model_name]
     else:
-        model = Thread(target=run_server, args =())
+        model_monitor[model_name] = status
+
+    # check if exist
+    exist = os.path.isfile(status.location)
+    if exist and not status.is_downloaded:
+        status.is_downloaded = True
+
+    if not status.is_downloaded and not downloader.is_downloading:
+        downloader.download(status)
+
+    if status.is_downloaded and not status.is_running:
+        model = Thread(target=run_server, args=())
         model.start()
+        status.is_running = True
 
     return jsonify({
         "id": "model",
-        "object": model_name,
         "created": int(time.time()),
-        "truncated": "",
-        "model": "LLaMA_CPP",
-        "download": download,
-        "running": running
+        "model": model_name,
+        "running": status.is_running,
+        "downloaded": status.is_downloaded,
+        "location": status.location
+    })
+
+
+@app.route('/model', methods=['GET'])
+def model_impl():
+    if (args.api_key != "" and request.headers["Authorization"].split()[1] != args.api_key):
+        return Response(status=403)
+    model_name = "llama_13B"
+    status = ModelStatus(model_name)
+    if model_name in model_monitor:
+        status = model_monitor[model_name]
+    else:
+        model_monitor[model_name] = status
+
+    return jsonify({
+        "id": "model",
+        "model": model_name,
+        "created": int(time.time()),
+        "downloaded": status.is_downloaded,
+        "running": status.is_running,
+        "download_process": status.download_process,
+        "location": status.location
+    })
+
+
+@app.route('/health', methods=['GET'])
+def health_impl():
+    if (args.api_key != "" and request.headers["Authorization"].split()[1] != args.api_key):
+        return Response(status=403)
+
+    model_info = {}
+    model_status = 500
+    msg = ""
+    try:
+        model_json = requests.request("GET", urllib.parse.urljoin(args.llama_api, "/model.json"))
+        model_info = model_json.json()
+        model_status = model_json.status_code
+    except requests.exceptions.Timeout:
+        msg = "Timeout"
+    except requests.exceptions.TooManyRedirects:
+        msg = "TooManyRedirects"
+    except requests.exceptions.RequestException as e:
+        print("Error", e)
+        msg = "RequestException"
+    except:
+        msg = "Unknown"
+
+    return jsonify({
+        "id": "model",
+        "model": model_info,
+        "created": int(time.time()),
+        "downloaded": True,
+        "status": model_status,
+        "msg": msg
     })
 
 
 if __name__ == '__main__':
-    downloader.download_lib()
+    if len(args.model) > 0:
+        model = Thread(target=run_server, args=(args.model,))
+        model.start()
     app.run(args.host, port=args.port)

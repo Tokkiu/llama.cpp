@@ -8,7 +8,7 @@ Usage:
 from setuptools import setup
 
 APP = ['llama.py']
-DATA_FILES = ['server.py', 'server', 'llama-2-13b-chat.ggmlv3.q4_0.bin']
+DATA_FILES = ['server.py', 'server', 'llama', 'llama-2-13b-chat.ggmlv3.q4_0.bin']
 OPTIONS = {
     'packages' : ['flask', 'requests', 'chardet', 'waitress'],
 }
