@@ -4,7 +4,7 @@ import urllib.parse
 import requests
 import time
 import json
-from server import run_server, Downloader, ModelStatus
+from server import run_llama_server, Downloader, ModelStatus
 from threading import Thread
 import os
 
@@ -28,7 +28,9 @@ parser.add_argument("--llama-api", type=str,
 parser.add_argument("--api-key", type=str, help="Set the api key to allow only few user(default: NULL)", default="")
 parser.add_argument("--host", type=str, help="Set the ip address to listen.(default: 127.0.0.1)", default='127.0.0.1')
 parser.add_argument("--port", type=int, help="Set the port to listen.(default: 31081)", default=31081)
-parser.add_argument("--model", type=str, help="model path. (default: llama-2-13b-chat.ggmlv3.q4_0.bin)", default="")
+# parser.add_argument("--llama-port", type=int, help="model path. (default: 31080)", default=31080)
+parser.add_argument("--llama-bin", type=str, help="model path. (default: ./server)", default="")
+parser.add_argument("--llama-model", type=str, help="model path. (default: llama-2-13b-chat.ggmlv3.q4_0.bin)", default="")
 args = parser.parse_args()
 
 
@@ -331,7 +333,7 @@ def health_impl():
 
 
 if __name__ == '__main__':
-    if len(args.model) > 0:
-        model = Thread(target=run_server, args=(args.model,))
+    if len(args.llama_bin) > 0 and len(args.llama_model) > 0:
+        model = Thread(target=run_llama_server, args=(args.llama_api, args.llama_bin, args.llama_model,))
         model.start()
     app.run(args.host, port=args.port)

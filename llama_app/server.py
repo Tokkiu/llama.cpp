@@ -13,14 +13,22 @@ model = "llama-2-13b-chat.ggmlv3.q4_0.bin"
 download_url = "https://huggingface.co/TheBloke/Llama-2-13B-chat-GGML/resolve/main/llama-2-13b-chat.ggmlv3.q4_0.bin "
 
 
-def run_server(path=""):
-    # if len(path) == 0:
-    path = source + model
-    print("Model is running...", path)
-    args = (source + "server", "-m", path, "-c", "2048", "--port", "31080")
-    popen = subprocess.Popen(args, stdout=subprocess.PIPE)
-    popen.wait()
-    print("Model is done")
+def run_llama_server(api, bin_path, model_path):
+    if len(model_path) == 0:
+        return
+    port = api.split(":")[-1]
+    print("Model is running...    listening on", port)
+    while True:
+        args = (bin_path, "-m", model_path, "-c", "2048", "--port", port)
+        popen = subprocess.Popen(args, stdout=subprocess.PIPE)
+        popen.wait()
+        print("Model is done, restarting...")
+
+        
+    # model = Thread(target=run_llama_server_impl, args=(args.llama_bin, args.llama_model,))
+    # model.start()
+    # path = source + model
+
 
 
 
@@ -74,7 +82,7 @@ class Downloader:
         print('Download completed!,times: %.2f秒' % (end - self.start))
         self.is_downloading = False
         status.is_downloaded = True
-        model_t = Thread(target=run_server, args=())
+        model_t = Thread(target=run_llama_server, args=())
         model_t.start()
         status.is_running = True
 
