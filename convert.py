@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import (IO, TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Literal, Optional, Sequence, Tuple, TypeVar, Union)
+from transformers import AutoTokenizer
 
 import numpy as np
 from sentencepiece import SentencePieceProcessor  # type: ignore
@@ -242,15 +243,19 @@ class SentencePieceVocab:
     def __init__(self, fname_tokenizer: Path, fname_added_tokens: Optional[Path], vocabtype: Optional[str]) -> None:
         self.vocabtype = vocabtype
         if self.vocabtype == "bpe":
-          self.sentencepiece_tokenizer = json.loads(open(str(fname_tokenizer)).read())
+            self.sentencepiece_tokenizer = json.loads(open(str(fname_tokenizer)).read())
+        elif self.vocabtype == 'solar':
+            self.sentencepiece_tokenizer = AutoTokenizer.from_pretrained(fname_tokenizer)
         else:
-          self.sentencepiece_tokenizer = SentencePieceProcessor(str(fname_tokenizer))
+            self.sentencepiece_tokenizer = SentencePieceProcessor(str(fname_tokenizer))
         added_tokens: Dict[str, int]
         if fname_added_tokens is not None:
             added_tokens = json.load(open(fname_added_tokens))
         else:
             added_tokens = {}
         if self.vocabtype == "bpe":
+          vocab_size: int = len(self.sentencepiece_tokenizer)
+        elif self.vocabtype == 'solar':
           vocab_size: int = len(self.sentencepiece_tokenizer)
         else:
           vocab_size: int = self.sentencepiece_tokenizer.vocab_size()
@@ -276,6 +281,16 @@ class SentencePieceVocab:
             text = b''.join([x.to_bytes(1, byteorder='big') for x in [byte_decoder[y] for y in item]])
             score: float = -i
             yield text, score
+        elif self.vocabtype == "solar":
+            from transformers.models.gpt2 import tokenization_gpt2
+            byte_encoder = tokenization_gpt2.bytes_to_unicode()
+            byte_decoder = {v: k for k, v in byte_encoder.items()}
+            for item, i in tokenizer.get_vocab().items():
+                text: bytes
+                # text = b''.join([x.to_bytes(1, byteorder='big') for x in [byte_decoder[y] for y in item]])
+                text = bytes(item, 'utf-8')
+                score: float = -i
+                yield text, score
         else:
           for i in range(tokenizer.vocab_size()):
               text: bytes
@@ -1238,9 +1253,12 @@ def load_vocab(path: Path, vocabtype: Optional[str]) -> SentencePieceVocab:
         elif path3.exists():
             path = path3
         else:
-            raise FileNotFoundError(
-                f"Could not find tokenizer.model in {path} or its parent; "
-                "if it's in another directory, pass the directory as --vocab-dir")
+            pass
+            # path4 = path / "tokenizer.json"
+            # path = path4
+            # raise FileNotFoundError(
+            #     f"Could not find tokenizer.model in {path} or its parent; "
+            #     "if it's in another directory, pass the directory as --vocab-dir")
     added_tokens_path = path.parent / "added_tokens.json"
     print(f"Loading vocab file {path}")
     return SentencePieceVocab(path, added_tokens_path if added_tokens_path.exists() else None,
@@ -1282,7 +1300,7 @@ def main(args_in: Optional[List[str]] = None) -> None:
     parser.add_argument("--outfile", type=Path, help="path to write to; default: based on input")
     parser.add_argument("model", type=Path,
                         help="directory containing model file, or model file itself (*.pth, *.pt, *.bin)")
-    parser.add_argument("--vocabtype", default='spm', choices=["spm", "bpe"], help="vocab format (default: spm)")
+    parser.add_argument("--vocabtype", default='spm', choices=["spm", "bpe", "solar"], help="vocab format (default: spm)")
     args = parser.parse_args(args_in)
 
     vocab: Vocab

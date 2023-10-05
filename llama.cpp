@@ -1867,6 +1867,8 @@ struct llama_tokenizer {
 
     void tokenize(const std::string & text, std::vector<llama_vocab::id> & output) {
         // split string into utf8 chars
+        fprintf(stderr, "do tokenize for %s\n", std::to_string(text.size()).c_str());
+
         int index = 0;
         size_t offs = 0;
         while (offs < text.size()) {
@@ -3970,6 +3972,7 @@ int llama_tokenize_with_model(
                  llama_token * tokens,
                          int   n_max_tokens,
                         bool   add_bos) {
+    fprintf(stderr, "n_max_tokens %s\n", std::to_string(n_max_tokens).c_str());
     auto res = llama_tokenize(model->vocab, text, add_bos);
 
     if (n_max_tokens < (int) res.size()) {
