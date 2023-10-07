@@ -282,14 +282,30 @@ class SentencePieceVocab:
             score: float = -i
             yield text, score
         elif self.vocabtype == "solar":
-            from transformers.models.gpt2 import tokenization_gpt2
-            byte_encoder = tokenization_gpt2.bytes_to_unicode()
-            byte_decoder = {v: k for k, v in byte_encoder.items()}
+            item_dic = {}
             for item, i in tokenizer.get_vocab().items():
-                text: bytes
-                # text = b''.join([x.to_bytes(1, byteorder='big') for x in [byte_decoder[y] for y in item]])
-                text = bytes(item, 'utf-8')
-                score: float = -i
+                item_dic[i] = item
+            for i in range(self.vocab_size):
+                if i not in item_dic:
+                    print("error, lost", i)
+                item = item_dic[i]
+                score: float = 0.0
+                if i == 0:
+                    text = " \u2047 ".encode("utf-8")
+                elif i < 3:
+                    text = b""
+                elif i <= 258:
+                    if len(item) != 6:
+                        raise Exception(f"Invalid token: {item}")
+                    byte_value = int(item[3:-1], 16)
+                    text = struct.pack("B", byte_value)
+                else:
+                    if i in [259,268,308,418,462,539,632,795,965,1669,1678,3986,4706,9651,18884,29871]:
+                        score = -10000000.0
+                    elif i < 32000:
+                        score = 259 - i
+                    text = item.replace("\u2581", " ").encode("utf-8")
+                # print(i, item, score)
                 yield text, score
         else:
           for i in range(tokenizer.vocab_size()):
